@@ -67,20 +67,19 @@ public class OrderServiceImpl implements OrderService {
                 throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"活动信息不正确");
             }
         }
-
-        //下单减库存
+        //5.下单减库存
         boolean result = itemService.decreaseStock(itemId,amount);
         if (!result) {
             //减少库存失败
             throw new BusinessException(EmBusinessError.STOCK_NOT_ENOUGH);
         }
 
-        //3.订单入库
+        //6.订单入库
         OrderModel orderModel = new OrderModel();
         orderModel.setAmount(amount);
         orderModel.setUserId(userId);
         orderModel.setItemId(itemId);
-        if (itemId != null){
+        if (promoId != null){
             orderModel.setItemPrice(itemModel.getPromoModel().getPromoItemPrice());
         }else {
             orderModel.setItemPrice(itemModel.getPrice());
@@ -88,7 +87,7 @@ public class OrderServiceImpl implements OrderService {
 
         orderModel.setPromoId(promoId);
         orderModel.setOrderPrice(orderModel.getItemPrice().multiply(new BigDecimal(amount)));
-        //生成订单ID
+        //7.生成订单ID
         orderModel.setId(sequenceService.generateOrderNo());
 
         OrderDO orderDO = this.convertOrderDOFromOrderModel(orderModel);
@@ -98,7 +97,7 @@ public class OrderServiceImpl implements OrderService {
         itemService.increaseSales(itemId,amount);
 
 
-        //5.返回前端
+        //8.返回前端
         return orderModel;
     }
 
@@ -115,6 +114,4 @@ public class OrderServiceImpl implements OrderService {
 
         return orderDO;
     }
-
-
 }
