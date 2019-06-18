@@ -38,6 +38,7 @@ public class DemoApplicationTests {
 	 * UserService insert 测试
 	 */
 
+
 	@Test
 	public void testUserServiceInsert() throws BusinessException {
 		UserModel userModel = new UserModel();
