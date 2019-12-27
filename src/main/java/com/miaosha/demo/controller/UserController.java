@@ -9,17 +9,17 @@ import com.miaosha.demo.service.UserService;
 import com.miaosha.demo.service.model.UserModel;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-import sun.misc.BASE64Encoder;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.UnsupportedEncodingException;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Random;
-
-
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -40,6 +40,8 @@ public class UserController extends BaseController{
     @Autowired
     HttpServletRequest httpServletRequest ;
 
+    @Autowired
+    private RedisTemplate redisTemplate;
 
     //用户登录接口
     @RequestMapping(value = "/login",method = RequestMethod.POST)
@@ -52,13 +54,23 @@ public class UserController extends BaseController{
         }
 
         //用户登录服务，用来校验用户登录是否合法
-        UserModel userModel = userService.validateLogin(telphone,this.EncodeByMD5(password));
+        UserModel userModel = userService.validateLogin(telphone,password);
 
         //将用户加入到Session
-        this.httpServletRequest.getSession().setAttribute("IS_LOGIN",true);
-        this.httpServletRequest.getSession().setAttribute("LOGIN_USER",userModel);
 
-        return CommonReturnType.create(null);
+        //生成Token UUID
+        String uuidToken = UUID.randomUUID().toString();
+        uuidToken = uuidToken.replace("-","");
+        System.out.println(uuidToken);
+        redisTemplate.opsForValue().set(uuidToken,userModel);
+        redisTemplate.expire(uuidToken,1, TimeUnit.HOURS);
+
+
+        //基于cookie
+//        this.httpServletRequest.getSession().setAttribute("IS_LOGIN",true);
+//        this.httpServletRequest.getSession().setAttribute("LOGIN_USER",userModel);
+
+        return CommonReturnType.create(uuidToken);
 
     }
 
@@ -87,7 +99,8 @@ public class UserController extends BaseController{
         randomInt += 10000;
         String optCode = String.valueOf(randomInt);
         //将opt验证码同用户的手机号关联
-        httpServletRequest.getSession().setAttribute(telphone,optCode);
+        redisTemplate.opsForValue().set(telphone,optCode);
+        redisTemplate.expire(telphone,3,TimeUnit.MINUTES);
         //将opt验证码通过短信通道发送给用户
         System.out.println(optCode);
 
@@ -95,7 +108,7 @@ public class UserController extends BaseController{
     }
 
     //用户注册接口
-    @RequestMapping("/register")
+    @RequestMapping(value = "/register",method = RequestMethod.POST)
     @ResponseBody
     public CommonReturnType register(@RequestParam(name = "name")String name,
                                      @RequestParam(name = "telphone")String telphone,
@@ -105,8 +118,8 @@ public class UserController extends BaseController{
                                      @RequestParam(name = "password")String password
                                      ) throws BusinessException, UnsupportedEncodingException, NoSuchAlgorithmException {
         //验证手机号和对应的opt相符合
-        String optCodeSession = (String) httpServletRequest.getSession().getAttribute(telphone);
-        if (!com.alibaba.druid.util.StringUtils.equals(optCodeSession,optCode)){
+        String tel = redisTemplate.opsForValue().get(telphone).toString();
+        if (!com.alibaba.druid.util.StringUtils.equals(tel,optCode)){
             throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"短信验证码不符合");
         }
         UserModel userModel = new UserModel();
@@ -115,18 +128,15 @@ public class UserController extends BaseController{
         userModel.setGender(gender.byteValue());
         userModel.setTelphone(telphone);
         userModel.setRegisterMode("byphone");
-        userModel.setEncrptPassword(this.EncodeByMD5(password));
+        userModel.setEncrptPassword(this.EncodeByBCrypt(password));
         userService.register(userModel);
         return CommonReturnType.create(null);
     }
 
     //密码生成
-    public String EncodeByMD5(String str) throws NoSuchAlgorithmException, UnsupportedEncodingException {
-        MessageDigest md5 = MessageDigest.getInstance("MD5");
-        BASE64Encoder base64Encoder = new BASE64Encoder();
-
-        String enCode = base64Encoder.encode(md5.digest(str.getBytes("UTF-8")));
-        return enCode;
+    private String EncodeByBCrypt(String str) throws NoSuchAlgorithmException, UnsupportedEncodingException {
+        BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+        return passwordEncoder.encode(str);
     }
 
     //将model转化为viewObject

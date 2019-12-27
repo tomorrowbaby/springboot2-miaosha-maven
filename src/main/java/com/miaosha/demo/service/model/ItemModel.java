@@ -3,6 +3,7 @@ package com.miaosha.demo.service.model;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+import java.io.Serializable;
 import java.math.BigDecimal;
 
 /**
@@ -11,7 +12,7 @@ import java.math.BigDecimal;
  * @date 2019/5/30
  */
 
-public class ItemModel {
+public class ItemModel implements Serializable {
 
 
     //使用聚合模型,如果proModel不为空，表示有未结束秒杀活动
@@ -42,7 +43,6 @@ public class ItemModel {
     //商品图片的url
     @NotBlank(message = "图片信息不能为空")
     private String imgUrl;
-
 
     private Integer itemId;
 

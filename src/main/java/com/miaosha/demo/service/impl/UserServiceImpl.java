@@ -14,6 +14,8 @@ import com.miaosha.demo.validator.ValidatorImpl;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,6 +53,7 @@ public class UserServiceImpl implements UserService {
         }
 
         UserInfoDO userInfoDO = convertFromUserModel(userModel);
+
         userInfoDOMapper.insertSelective(userInfoDO);
 
         userModel.setId(userInfoDO.getId());
@@ -66,7 +69,7 @@ public class UserServiceImpl implements UserService {
 
     //判断用户登录合法
     @Override
-    public UserModel validateLogin(String telphone,String encrpPassword) throws BusinessException {
+    public UserModel validateLogin(String telphone,String password) throws BusinessException {
         //通过用户获取手机获取
         UserInfoDO userInfoDO = userInfoDOMapper.selectByTelphone(telphone);
         if (userInfoDO == null){
@@ -77,7 +80,8 @@ public class UserServiceImpl implements UserService {
         UserModel userModel = convertFromDataObject(userInfoDO,userPasswordDO);
 
         //判断密码是否正确
-        if (!StringUtils.equals(encrpPassword,userModel.getEncrptPassword())){
+        BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+        if( !passwordEncoder.matches(password,userModel.getEncrptPassword())){
             throw new BusinessException(EmBusinessError.USER_LOGIN_FAIL);
         }
         return userModel;
@@ -85,7 +89,7 @@ public class UserServiceImpl implements UserService {
 
 
     //将dataobject转化成model
-    private UserModel convertFromDataObject(UserInfoDO userInfoDO, UserPasswordDO userPasswordDO) {
+    public UserModel convertFromDataObject(UserInfoDO userInfoDO, UserPasswordDO userPasswordDO) {
         if (userInfoDO == null){
             return null ;
         }
@@ -101,7 +105,7 @@ public class UserServiceImpl implements UserService {
     }
 
     //将model转化成dataobject
-    private UserInfoDO convertFromUserModel(UserModel userModel) {
+    public UserInfoDO convertFromUserModel(UserModel userModel) {
         if (userModel == null) {
             return null;
         }
@@ -110,7 +114,7 @@ public class UserServiceImpl implements UserService {
         return userInfoDO ;
     }
 
-    private UserPasswordDO convertPasswordFromUserModel(UserModel userModel) {
+    public UserPasswordDO convertPasswordFromUserModel(UserModel userModel) {
         if (userModel == null){
             return null;
         }

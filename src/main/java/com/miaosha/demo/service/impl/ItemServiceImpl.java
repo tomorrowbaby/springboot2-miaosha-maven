@@ -180,8 +180,6 @@ public class ItemServiceImpl implements ItemService {
             throw new BusinessException(EmBusinessError.UNKNOW_ERROR);
         }
 
-
-
         //将商品信息和商品详情的dataobject -> model
         List<ItemModel> itemModelList = new ArrayList<>();
         ItemModel itemModel = new ItemModel();

@@ -4,17 +4,20 @@ import com.miaosha.demo.controller.viewobject.ItemVO;
 import com.miaosha.demo.error.BusinessException;
 import com.miaosha.demo.error.EmBusinessError;
 import com.miaosha.demo.response.CommonReturnType;
+import com.miaosha.demo.service.CacheService;
 import com.miaosha.demo.service.ItemService;
 import com.miaosha.demo.service.model.ItemModel;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -29,6 +32,12 @@ public class ItemController extends BaseController{
 
     @Autowired
     ItemService itemService;
+
+    @Autowired
+    RedisTemplate redisTemplate;
+
+    @Autowired
+    CacheService cacheService;
 
     //商品创建接口
     @RequestMapping(value = "/create",method = RequestMethod.POST)
@@ -57,10 +66,33 @@ public class ItemController extends BaseController{
         if (id == null){
             throw new BusinessException(EmBusinessError.UNKNOW_ERROR);
         }
-        ItemModel itemModel = itemService.getItemById(id);
+
+        ItemModel itemModel = null;
+
+        //先从本地缓存加载
+        itemModel = (ItemModel) cacheService.getFromCommonCache("item_"+id);
+
+        //本地缓存不存在数据
         if (itemModel == null) {
-            throw new BusinessException(EmBusinessError.ITEM_NOT_EXIT);
+            //从redis缓存获取获取商品信息
+            itemModel = (ItemModel) redisTemplate.opsForValue().get("item_"+id);
+
+            //如果redis获取到的缓存为空，进行Service层获取
+            if (itemModel == null) {
+                itemModel = itemService.getItemById(id);
+                if (itemModel == null) {
+                    throw new BusinessException(EmBusinessError.ITEM_NOT_EXIT);
+                }else {
+                    redisTemplate.opsForValue().set("item_"+id,itemModel);
+                    redisTemplate.expire("item_"+id,10, TimeUnit.MINUTES);
+                }
+            }
+            //将数据加载到本地缓存
+            cacheService.setCommonCache("item_"+id,itemModel);
         }
+
+
+
         ItemVO itemVO = this.convertVOFromModel(itemModel);
         return CommonReturnType.create(itemVO);
     }

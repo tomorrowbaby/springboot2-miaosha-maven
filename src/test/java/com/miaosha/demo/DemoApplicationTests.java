@@ -68,7 +68,6 @@ public class DemoApplicationTests {
 		itemService.createItem(itemModel);
 	}
 
-
 	/**
 	 *ItemService selectById 测试
 	 */

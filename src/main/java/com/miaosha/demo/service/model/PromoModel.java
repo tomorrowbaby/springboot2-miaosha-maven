@@ -2,6 +2,7 @@ package com.miaosha.demo.service.model;
 
 import org.joda.time.DateTime;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import com.mysql.cj.jdbc.*;
 /**
@@ -10,7 +11,7 @@ import com.mysql.cj.jdbc.*;
  * @date 2019/6/3
  */
 
-public class PromoModel {
+public class PromoModel implements Serializable {
 
     private Integer id;
 
